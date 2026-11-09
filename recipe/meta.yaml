@@ -1,0 +1,66 @@
+{% set name = "tree-sitter-c" %}
+{% set pypi_name = "tree_sitter_c" %}
+{% set version = "0.24.2" %}
+
+package:
+  name: {{ name }}
+  version: {{ version }}
+
+source:
+  url: https://pypi.org/packages/source/{{ pypi_name[0] }}/{{ pypi_name }}/{{ pypi_name }}-{{ version }}.tar.gz
+  sha256: 1628584df0299b5a340aa63f8e67b6c97c91517f52fa7e7a4c557e40adb330a9
+
+build:
+  number: 0
+  skip: true  # [py<310]
+  script: {{ PYTHON }} -m pip install . -vv --no-deps --no-build-isolation
+
+requirements:
+  build:
+    - {{ compiler('c') }}
+    - {{ stdlib('c') }}
+  host:
+    - python
+    - pip
+    - setuptools >=42
+    - wheel
+  run:
+    - python
+  run_constrained:
+    # from upstream [project.optional-dependencies] 'core' extra: tree-sitter~=0.24
+    # the core binding publishes as conda name tree_sitter (underscore) per its
+    # packaging convention; inert until that package exists on pkgs/main
+    # upstream 'core' extra says tree-sitter~=0.24, but this grammar is ABI 15,
+    # which needs tree-sitter >=0.25
+    - tree_sitter >=0.25,<1.0
+
+test:
+  requires:
+    - pip
+    - tree_sitter
+  imports:
+    - tree_sitter_c
+  commands:
+    - pip check
+    # parse with the core binding (tree_sitter) to prove the grammar loads and
+    # produces the expected root node; abi_version cross-checks the grammar's
+    # LANGUAGE_VERSION with the runtime
+    - python -c "import tree_sitter, tree_sitter_c; lang = tree_sitter.Language(tree_sitter_c.language()); assert lang.abi_version == 15, lang.abi_version; tree = tree_sitter.Parser(lang).parse(b'int main(void) { return 0; }'); assert tree.root_node.type == 'translation_unit', tree.root_node.type"
+
+about:
+  home: https://github.com/tree-sitter/tree-sitter-c
+  summary: C grammar for tree-sitter
+  description: >-
+    C grammar for tree-sitter, providing a parser for C source code built
+    with the tree-sitter incremental parsing toolkit.
+  license: MIT
+  license_family: MIT
+  license_file: LICENSE
+  doc_url: https://github.com/tree-sitter/tree-sitter-c#readme
+  dev_url: https://github.com/tree-sitter/tree-sitter-c
+
+extra:
+  recipe-maintainers:
+    - killua156
+    - mgorny
+    - rxm7706
